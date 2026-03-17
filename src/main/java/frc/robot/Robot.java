@@ -22,6 +22,7 @@ public class Robot extends TimedRobot {
 
   private RobotContainer m_robotContainer;
   private LEDController m_ledController;
+  private enum LedState { IDLE, LIMIT_SWITCH, SHOOT, INTAKE }
 
 
   /**
@@ -58,6 +59,7 @@ public class Robot extends TimedRobot {
   public void disabledInit() {
     m_ledController.applyColorSolid(LEDController.LEDColor.TR_BLUE);
     m_ledController.startSnakeAnimation(LEDColor.TR_BLUE, LEDColor.TR_RED, true);
+    // m_ledController.startSnakeAnimation(LEDColor.TR_BLUE, LEDColor.TR_RED, true);
   }
 
   @Override
@@ -88,27 +90,56 @@ public class Robot extends TimedRobot {
       m_autonomousCommand.cancel();
     }
     m_robotContainer.teleopInitRoutine();
-    boolean[] lastLimitSwitchState = new boolean[] {false};
+    final LedState[] currentState = new LedState[] {LedState.IDLE};
     m_ledController.setDefaultCommand(new FunctionalCommand(
         () -> {
-          lastLimitSwitchState[0] = false;
+          currentState[0] = LedState.IDLE;
+          m_ledController.stopLimitSwitchProgressLoop();
           m_ledController.applyBlinkColor(LEDColor.TR_RED);
         },
         () -> {
           boolean limitSwitchBroken = m_robotContainer.isIntakeLimitSwitchTriggered();
-          if (limitSwitchBroken) {
-            if (!lastLimitSwitchState[0]) {
-              m_ledController.startLimitSwitchProgressLoop();
-            }
-            m_ledController.runLimitSwitchProgressLoop();
-          } else if (lastLimitSwitchState[0]) {
-            m_ledController.stopLimitSwitchProgressLoop();
-            m_ledController.applyBlinkColor(LEDColor.TR_RED);
+          boolean intakeActive = m_robotContainer.isIntaking();
+          boolean shooterRevving = m_robotContainer.isShooterRevving();
+
+          LedState desiredState = LedState.IDLE;
+          if (intakeActive) {
+            desiredState = LedState.INTAKE;
+          } else if (shooterRevving) {
+            desiredState = LedState.SHOOT;
+          } else if (limitSwitchBroken) {
+            desiredState = LedState.LIMIT_SWITCH;
           }
-          lastLimitSwitchState[0] = limitSwitchBroken;
+
+          if (desiredState != currentState[0]) {
+            if (currentState[0] == LedState.LIMIT_SWITCH) {
+              m_ledController.stopLimitSwitchProgressLoop();
+            }
+
+            switch (desiredState) {
+              case INTAKE:
+                m_ledController.applyColorBlink(LEDColor.PURPLE, LEDColor.OFF, 0);
+                break;
+              case SHOOT:
+                m_ledController.applyColorBlink(LEDColor.GREEN, LEDColor.OFF, 0);
+                break;
+              case LIMIT_SWITCH:
+                m_ledController.startLimitSwitchProgressLoop();
+                break;
+              case IDLE:
+              default:
+                m_ledController.applyBlinkColor(LEDColor.TR_RED);
+                break;
+            }
+            currentState[0] = desiredState;
+          }
+
+          if (currentState[0] == LedState.LIMIT_SWITCH) {
+            m_ledController.runLimitSwitchProgressLoop();
+          }
         },
         interrupted -> {
-          lastLimitSwitchState[0] = false;
+          currentState[0] = LedState.IDLE;
           m_ledController.stopLimitSwitchProgressLoop();
         },
         () -> false,
@@ -138,5 +169,4 @@ public class Robot extends TimedRobot {
   public void simulationPeriodic() {
   }
 }
-
 

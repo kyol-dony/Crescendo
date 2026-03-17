@@ -15,8 +15,8 @@ import frc.robot.RobotContainer;
 public class LEDController extends SubsystemBase {
   // Constants that can move to Constant.java
   private static final int kPwmPort = 1; // PWM port for the LED strip
-  private static final int kLedLength = 300; // Number of LEDs in the strip
-  private static final double kBrightness = 1.0; // 100% brightness
+  private static final int kLedLength = 180; // Number of LEDs in the strip
+  private static final double kBrightness = 0.3; // 100% brightness
   
   // Progress fill animation
   private static final double kFillDurationSeconds = 1.0; // Duration of the fill animation
